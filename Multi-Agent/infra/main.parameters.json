@@ -1,0 +1,69 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "solutionName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "azureAiServiceLocation": {
+      "value": "${AZURE_ENV_OPENAI_LOCATION}"
+    },
+    "gptModelDeploymentType": {
+      "value": "${AZURE_ENV_MODEL_DEPLOYMENT_TYPE=Standard}"
+    },
+    "gptModelName": {
+      "value": "${AZURE_ENV_MODEL_NAME=gpt-4o-mini}"
+    },
+    "gptModelVersion": {
+      "value": "${AZURE_ENV_MODEL_VERSION=2024-07-18}"
+    },
+    "gptModelCapacity": {
+      "value": "${AZURE_ENV_MODEL_CAPACITY=10}"
+    },
+    "gpt4_1ModelDeploymentType": {
+      "value": "${AZURE_ENV_MODEL_4_1_DEPLOYMENT_TYPE=Standard}"
+    },
+    "gpt4_1ModelName": {
+      "value": "${AZURE_ENV_MODEL_4_1_NAME=gpt-4o-mini}"
+    },
+    "gpt4_1ModelVersion": {
+      "value": "${AZURE_ENV_MODEL_4_1_VERSION=2024-07-18}"
+    },
+    "gpt4_1ModelCapacity": {
+      "value": "${AZURE_ENV_MODEL_4_1_CAPACITY=10}"
+    },
+    "gptReasoningModelDeploymentType": {
+      "value": "${AZURE_ENV_REASONING_MODEL_DEPLOYMENT_TYPE=Standard}"
+    },
+    "gptReasoningModelName": {
+      "value": "${AZURE_ENV_REASONING_MODEL_NAME=gpt-4o-mini}"
+    },
+    "gptReasoningModelVersion": {
+      "value": "${AZURE_ENV_REASONING_MODEL_VERSION=2024-07-18}"
+    },
+    "gptReasoningModelCapacity": {
+      "value": "${AZURE_ENV_REASONING_MODEL_CAPACITY=10}"
+    },
+    "backendContainerImageTag": {
+      "value": "${AZURE_ENV_IMAGE_TAG=latest_v3}"
+    },
+    "frontendContainerImageTag": {
+      "value": "${AZURE_ENV_IMAGE_TAG=latest_v3}"
+    },
+    "MCPContainerImageTag": {
+      "value": "${AZURE_ENV_IMAGE_TAG=latest_v3}"
+    },
+    "enableTelemetry": {
+      "value": "${AZURE_ENV_ENABLE_TELEMETRY=true}"
+    },
+    "existingLogAnalyticsWorkspaceId": {
+      "value": "${AZURE_ENV_LOG_ANALYTICS_WORKSPACE_ID=}"
+    },
+    "existingAiFoundryAiProjectResourceId": {
+      "value": "${AZURE_EXISTING_AI_PROJECT_RESOURCE_ID=}"
+    }
+  }
+}
