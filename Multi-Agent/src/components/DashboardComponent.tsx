@@ -11,7 +11,6 @@ import {
     Avatar,
 } from "@fluentui/react-components";
 import {
-    SearchRegular,
     DocumentRegular,
     CalendarRegular,
     MoneyRegular,
@@ -21,6 +20,9 @@ import {
     AddRegular,
     MicRegular,
 } from "@fluentui/react-icons";
+import { useMsal } from "@azure/msal-react";
+import type { AccountInfo } from "@azure/msal-browser";
+
 
 // Estilos del Dashboard usando Fluent UI
 const useStyles = makeStyles({
@@ -85,8 +87,9 @@ const useStyles = makeStyles({
 const DashboardComponent: React.FC = () => {
     const styles = useStyles();
     const navigate = useNavigate();
-    const userName = "Carolina Ruiz"; // TODO: Obtener dinámicamente del usuario autenticado
     const [searchInput, setSearchInput] = useState("");
+      const { accounts } = useMsal();
+        const account: AccountInfo | undefined = accounts[0];
 
     // Preguntas de ejemplo para inicio rápido
     const sampleQuestions = [
@@ -135,7 +138,7 @@ const DashboardComponent: React.FC = () => {
         <div className={styles.root}>
             {/* Saludo personalizado */}
             <div className={styles.greetingSection}>
-                <Title1 className={styles.greeting} style={{ fontSize: "22px" }}>Buenas tardes, {userName}</Title1>
+                <Title1 className={styles.greeting} style={{ fontSize: "22px" }}>Buenas tardes, {account?.name}</Title1>
                 <Title1 className={styles.greeting} style={{ fontSize: "22px" }}>¿En qué puedo ayudarte hoy?</Title1>
             </div>
 

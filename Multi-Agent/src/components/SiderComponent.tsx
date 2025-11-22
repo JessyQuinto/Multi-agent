@@ -16,6 +16,9 @@ import {
   NavigationRegular,
 } from "@fluentui/react-icons";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useMsal } from "@azure/msal-react";
+import { Image } from "@fluentui/react-components";
+import logo from "../assets/col-transf-logo.ico";
 
 const useStyles = makeStyles({
   root: {
@@ -63,7 +66,10 @@ interface SiderComponentProps {
   onToggle: () => void;
 }
 
-const SiderComponent: React.FC<SiderComponentProps> = ({ collapsed, onToggle }) => {
+const SiderComponent: React.FC<SiderComponentProps> = ({
+  collapsed,
+  onToggle,
+}) => {
   const styles = useStyles();
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,15 +77,30 @@ const SiderComponent: React.FC<SiderComponentProps> = ({ collapsed, onToggle }) 
   const onTabSelect = (_event: unknown, data: SelectTabData) => {
     navigate(data.value as string);
   };
+  const { instance } = useMsal();
 
   // Map paths to tab values
-  const selectedValue = location.pathname === "/" ? "/tickets" : location.pathname;
+  const selectedValue =
+    location.pathname === "/" ? "/tickets" : location.pathname;
 
   return (
-    <div className={`${styles.root} ${collapsed ? styles.collapsed : styles.expanded}`}>
+    <div
+      className={`${styles.root} ${
+        collapsed ? styles.collapsed : styles.expanded
+      }`}
+    >
       <div>
         <div className={styles.header}>
-          {!collapsed && <Text className={styles.logo}>Service Desk</Text>}
+          {!collapsed && (
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px" }}>
+              <Image
+                alt="Service Desk Agent"
+                src={logo}
+                style={{ height: "30px" }}
+              />
+              <Text className={styles.logo}>Service Desk</Text>
+            </div>
+          )}
           <Button
             appearance="subtle"
             icon={<NavigationRegular />}
@@ -108,7 +129,11 @@ const SiderComponent: React.FC<SiderComponentProps> = ({ collapsed, onToggle }) 
 
       <div className={styles.bottomSection}>
         <TabList vertical>
-          <Tab icon={<SignOutRegular />} value="/logout">
+          <Tab
+            icon={<SignOutRegular />}
+            value="/logout"
+            onClick={() => instance.logoutRedirect()}
+          >
             {!collapsed && "Logout"}
           </Tab>
         </TabList>
