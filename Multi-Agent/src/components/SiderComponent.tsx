@@ -16,6 +16,7 @@ import {
   NavigationRegular,
 } from "@fluentui/react-icons";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useMsal } from "@azure/msal-react";
 
 const useStyles = makeStyles({
   root: {
@@ -71,6 +72,7 @@ const SiderComponent: React.FC<SiderComponentProps> = ({ collapsed, onToggle }) 
   const onTabSelect = (_event: unknown, data: SelectTabData) => {
     navigate(data.value as string);
   };
+  const { instance } = useMsal();
 
   // Map paths to tab values
   const selectedValue = location.pathname === "/" ? "/tickets" : location.pathname;
@@ -108,7 +110,7 @@ const SiderComponent: React.FC<SiderComponentProps> = ({ collapsed, onToggle }) 
 
       <div className={styles.bottomSection}>
         <TabList vertical>
-          <Tab icon={<SignOutRegular />} value="/logout">
+          <Tab icon={<SignOutRegular />} value="/logout" onClick={() => instance.logoutRedirect()}>
             {!collapsed && "Logout"}
           </Tab>
         </TabList>

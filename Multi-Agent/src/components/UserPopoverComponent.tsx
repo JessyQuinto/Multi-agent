@@ -10,6 +10,8 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { SignOutRegular } from "@fluentui/react-icons";
+import { useMsal } from "@azure/msal-react";
+import type { AccountInfo } from "@azure/msal-browser";
 
 const useStyles = makeStyles({
   card: {
@@ -42,6 +44,8 @@ const useStyles = makeStyles({
 
 const ChromeProfilePopover: React.FC = () => {
   const styles = useStyles();
+  const { accounts , instance } = useMsal();
+  const account: AccountInfo | undefined = accounts[0];
 
   return (
     <Popover>
@@ -52,12 +56,12 @@ const ChromeProfilePopover: React.FC = () => {
       <PopoverSurface>
         <div className={styles.card}>
           <div className={styles.header}>
-            <Avatar size={64} name="Carolina Ruiz" />
+            <Avatar size={64} name={account?.name} />
             <div>
-              <Text className={styles.name}>Carolina Ruiz</Text>
+              <Text className={styles.name}>{account?.name}</Text>
             </div>
             <div>
-              <Text className={styles.email}>cruiz@outlook.com</Text>
+              <Text className={styles.email}>{account?.username}</Text>
             </div>
           </div>
 
@@ -65,9 +69,9 @@ const ChromeProfilePopover: React.FC = () => {
             appearance="subtle"
             className={styles.logoutBtn}
             icon={<SignOutRegular />}
-            onClick={() => console.log("Logout clicked")}
+            onClick={() => instance.logoutRedirect()}
           >
-            Cerrar sesión
+            Logout
           </Button>
         </div>
       </PopoverSurface>
