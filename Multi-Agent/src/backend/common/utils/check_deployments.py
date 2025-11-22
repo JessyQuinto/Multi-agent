@@ -8,7 +8,10 @@ backend_path = os.path.join(os.path.dirname(__file__), "..", "..")
 sys.path.insert(0, backend_path)
 
 try:
-    from v3.common.services.foundry_service import FoundryService
+    from azure.core.credentials import AzureKeyCredential
+    from azure.identity import DefaultAzureCredential
+    from common.config.app_config import config
+    from common.services.foundry_service import FoundryService
 except ImportError as e:
     print(f"❌ Import error: {e}")
     sys.exit(1)

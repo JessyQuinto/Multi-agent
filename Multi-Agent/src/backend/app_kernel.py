@@ -14,12 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Local imports
 from middleware.health_check import HealthCheckMiddleware
-from v3.api.router import app_v3
+from api.router import app_v3
 
 # Azure monitoring
 
 # Semantic Kernel imports
-from v3.config.agent_registry import agent_registry
+from config.agent_registry import agent_registry
 
 
 @asynccontextmanager

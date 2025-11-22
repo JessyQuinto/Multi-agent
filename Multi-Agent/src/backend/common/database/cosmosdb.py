@@ -4,9 +4,11 @@ import datetime
 import logging
 from typing import Any, Dict, List, Optional, Type
 
-import v3.models.messages as messages
+import models.messages as messages
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos.aio._database import DatabaseProxy
+from common.config.app_config import config
+from common.database.database_base import DatabaseBase
 
 from ..models.messages_kernel import (
     AgentMessage,
