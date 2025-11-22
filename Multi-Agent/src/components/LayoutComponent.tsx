@@ -14,7 +14,8 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     flexGrow: 1,
-    overflow: "hidden",
+    overflowY: "auto", 
+    overflowX: "hidden",
   },
   footer: {
     textAlign: "center",

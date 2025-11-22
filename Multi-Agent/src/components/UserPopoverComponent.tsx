@@ -50,7 +50,7 @@ const ChromeProfilePopover: React.FC = () => {
   return (
     <Popover>
       <PopoverTrigger disableButtonEnhancement>
-        <Avatar name="Carolina Ruiz" style={{ cursor: "pointer" }} />
+        <Avatar name={account?.name} style={{ cursor: "pointer" }} />
       </PopoverTrigger>
 
       <PopoverSurface>
