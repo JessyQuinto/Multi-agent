@@ -28,14 +28,10 @@ class ConversationalAgent:
             import json
             agent_ids_path = os.path.join(os.path.dirname(__file__), "..", "agent_ids.json")
             
-            print(f"DEBUG: Attempting to load agent IDs from {agent_ids_path}")
             if os.path.exists(agent_ids_path):
                 with open(agent_ids_path, "r") as f:
                     agent_ids = json.load(f)
                     self.conversational_agent_id = agent_ids.get("conversational_id")
-                    print(f"DEBUG: Loaded conversational_agent_id: {self.conversational_agent_id}")
-            else:
-                print("DEBUG: agent_ids.json not found!")
             
             endpoint = os.getenv("AZURE_AI_AGENT_ENDPOINT")
             subscription_id = os.getenv("AZURE_AI_SUBSCRIPTION_ID")
@@ -53,11 +49,9 @@ class ConversationalAgent:
                 logger.info(f"ConversationalAgent initialized with agent ID: {self.conversational_agent_id}")
             else:
                 logger.warning("Azure AI configuration incomplete. Running in mock mode.")
-                print("DEBUG: Missing Azure env vars")
                 
         except Exception as e:
             logger.error(f"Failed to initialize ConversationalAgent: {e}")
-            print(f"DEBUG: Init exception: {e}")
 
     async def chat(self, user_id: str, message: str) -> Dict[str, Any]:
         """
@@ -70,11 +64,7 @@ class ConversationalAgent:
         
         if not self.project_client or not self.conversational_agent_id:
             # Mock mode - simple heuristic
-            return {
-                "response": f"DEBUG MODE: Client or Agent ID missing. Client: {self.project_client}, ID: {self.conversational_agent_id}",
-                "requires_case": False,
-                "case_type": None
-            }
+            return self._mock_chat(message)
         
         try:
             # Get or create thread for this user
@@ -131,19 +121,15 @@ class ConversationalAgent:
                         }
             
             return {
-                "response": f"DEBUG ERROR: Run status is {run.status}. Details: {run.last_error if hasattr(run, 'last_error') else 'None'}",
+                "response": f"Lo siento, hubo un problema al procesar tu mensaje. Estado: {run.status}",
                 "requires_case": False,
                 "case_type": None
             }
             
         except Exception as e:
             logger.error(f"Error in conversational agent (falling back to mock): {e}")
-            # Return the actual error for debugging
-            return {
-                "response": f"DEBUG EXCEPTION: {str(e)}",
-                "requires_case": False,
-                "case_type": None
-            }
+            # Fall back to mock mode if Azure fails
+            return self._mock_chat(message)
 
     async def _get_or_create_thread(self, user_id: str) -> str:
         """Get existing thread or create new one for user."""

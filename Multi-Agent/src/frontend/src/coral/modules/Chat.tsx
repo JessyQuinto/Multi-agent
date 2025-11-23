@@ -215,7 +215,9 @@ const Chat: React.FC<ChatProps> = ({
 
         {isTyping && (
           <div className="typing-indicator">
-            <span>Thinking...</span>
+            <div className="dot"></div>
+            <div className="dot"></div>
+            <div className="dot"></div>
           </div>
         )}
       </div>
