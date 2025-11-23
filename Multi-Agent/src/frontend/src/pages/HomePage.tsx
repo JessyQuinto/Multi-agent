@@ -125,26 +125,67 @@ const HomePage: React.FC = () => {
     const [isChatMode, setIsChatMode] = useState(false);
     const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
 
+    const [isLoading, setIsLoading] = useState(false);
+
+    const sendMessage = async (text: string) => {
+        if (!text.trim()) return;
+
+        // Add user message immediately
+        const newMessages = [...messages, { role: 'user', content: text } as const];
+        setMessages(newMessages);
+        setIsChatMode(true);
+        setIsLoading(true);
+
+        try {
+            const response = await fetch('/api/v3/hr/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Assuming auth is handled via cookies or we need to add a header if we had a token
+                    // For now, relying on the backend to identify user via mock or existing session
+                },
+                body: JSON.stringify({ message: text }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const data = await response.json();
+            // Assuming data.data is the response string or object
+            // The backend returns { status: "success", data: result }
+            // result from dispatcher is currently just the string response or a list of events
+            // Let's assume it returns a string for now, or we adjust based on DispatcherService
+
+            const assistantMessage = typeof data.data === 'string' ? data.data : JSON.stringify(data.data);
+
+            setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+
+        } catch (error) {
+            console.error('Error sending message:', error);
+            showToast("Error al conectar con el asistente.", "error");
+            setMessages(prev => [...prev, { role: 'assistant', content: "Lo siento, hubo un error al procesar tu solicitud." }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleServiceClick = (service: string) => {
         const message = `Quiero información sobre ${service}`;
-        setIsChatMode(true);
-        setMessages([{ role: 'user', content: message }]);
-        setChatInput(''); // Clear input
+        setChatInput('');
+        sendMessage(message);
     };
 
     const handleSuggestionClick = (suggestion: string) => {
-        // Activate chat mode when suggestion is clicked
-        setIsChatMode(true);
-        setMessages([{ role: 'user', content: suggestion }]);
-        setChatInput(''); // Clear input immediately to prevent double send
+        setChatInput('');
+        sendMessage(suggestion);
     };
 
     const handleChatSubmit = () => {
         if (chatInput.trim()) {
-            // Activate chat mode when user sends a message
-            setIsChatMode(true);
-            setMessages([...messages, { role: 'user', content: chatInput }]);
+            const text = chatInput;
             setChatInput('');
+            sendMessage(text);
         }
     };
 

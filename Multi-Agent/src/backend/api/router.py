@@ -38,10 +38,55 @@ from orchestration.orchestration_manager import OrchestrationManager
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+from orchestration.dispatcher_service import DispatcherService
+from common.services.case_service import CaseService
+
 app_v3 = APIRouter(
     prefix="/api/v3",
     responses={404: {"description": "Not found"}},
 )
+
+@app_v3.post("/hr/chat")
+async def hr_chat(
+    request: Request,
+    input_data: dict, # Expecting {"message": "..."}
+):
+    """
+    HR Service Desk Chat Endpoint.
+    Routes user input to the Dispatcher for multi-intent analysis and case creation.
+    """
+    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    user_id = authenticated_user["user_principal_id"]
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Missing or invalid user information")
+
+    try:
+        # 1. Initialize Services
+        memory_store = await DatabaseFactory.get_database(user_id=user_id)
+        case_service = CaseService(memory_store)
+        dispatcher = DispatcherService(case_service)
+
+        # 2. Process Input
+        user_message = input_data.get("message", "")
+        if not user_message:
+             raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+        # 3. Dispatch
+        # This returns a list of created cases/responses
+        # For now, we just return the result of the dispatch
+        # In the future, this might trigger background tasks
+        
+        result = await dispatcher.process_user_input(user_id, user_message)
+        
+        return {
+            "status": "success",
+            "data": result
+        }
+
+    except Exception as e:
+        logger.error(f"Error in HR Chat: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app_v3.websocket("/socket/{process_id}")
