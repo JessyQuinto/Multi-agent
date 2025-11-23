@@ -1,5 +1,6 @@
 import os
 import asyncio
+import json
 from azure.ai.projects import AIProjectClient
 from azure.ai.agents.models import ConnectedAgentTool, MessageRole
 from azure.identity import DefaultAzureCredential
@@ -32,7 +33,6 @@ if not all([subscription_id, resource_group, project_name]):
     exit(1)
 
 # Full Agents Endpoint Strategy
-# Based on the user's JSON output for "agentsEndpointUri"
 agents_endpoint = f"{ENDPOINT}/agents/v1.0/subscriptions/{subscription_id}/resourceGroups/{resource_group}/providers/Microsoft.MachineLearningServices/workspaces/{project_name}"
 print(f"🔌 Connecting to Agents Endpoint: {agents_endpoint}")
 
@@ -52,14 +52,9 @@ except Exception as e:
 def create_or_update_agent(name, model, instructions, tools=None):
     """
     Helper to create or update an agent. 
-    Note: The SDK currently supports create. For update, we might need to list and check.
-    For simplicity, this script creates new agents. 
-    In a real scenario, you'd check if it exists first.
     """
     print(f"\n🤖 Provisioning Agent: {name}...")
     try:
-        # Check if agent exists (naive check by listing - optional optimization)
-        # For now, we just create.
         agent = project_client.agents.create_agent(
             model=model,
             name=name,
@@ -74,16 +69,45 @@ def create_or_update_agent(name, model, instructions, tools=None):
 
 def main():
     # ================================================================
-    # 2. Create Agents
+    # 2. Create Agents (Idempotent)
     # ================================================================
+
+    # Load existing agent IDs
+    existing_ids = {}
+    # Fix: Look for agent_ids.json in the same directory as this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    agent_ids_path = os.path.join(script_dir, "agent_ids.json")
+    
+    if os.path.exists(agent_ids_path):
+        try:
+            with open(agent_ids_path, "r") as f:
+                existing_ids = json.load(f)
+            print(f"📋 Loaded existing agent IDs from {agent_ids_path}")
+        except Exception as e:
+            print(f"⚠️ Could not load agent_ids.json: {e}")
+    else:
+        print(f"⚠️ agent_ids.json not found at {agent_ids_path}. Creating new agents.")
+
+    class AgentRef:
+        def __init__(self, id, name):
+            self.id = id
+            self.name = name
+
+    def get_or_create(key, name, model, instructions, tools=None):
+        if key in existing_ids:
+            print(f"⏩ Skipping {name} (already exists: {existing_ids[key]})")
+            return AgentRef(existing_ids[key], name)
+        else:
+            return create_or_update_agent(name, model, instructions, tools)
 
     # -------------------------
     # Intent Agent
     # -------------------------
-    intent_agent = create_or_update_agent(
-        name="IntentAgent",
-        model="gpt-4o", # Using gpt-4o as standard
-        instructions=(
+    intent_agent = get_or_create(
+        "intent_id",
+        "IntentAgent",
+        "gpt-4o",
+        (
             "Clasifica la intención del usuario para solicitudes de RRHH. "
             "Identifica si es: certificado, vacaciones, beneficios, nómina, políticas "
             "o si requiere escalamiento humano (casos sensibles). "
@@ -104,42 +128,35 @@ def main():
     # -------------------------
     # Administrative Agent (Runbooks)
     # -------------------------
-    admin_agent = create_or_update_agent(
-        name="AdministrativeAgent",
-        model="gpt-4o",
-        instructions=(
+    admin_agent = get_or_create(
+        "admin_id",
+        "AdministrativeAgent",
+        "gpt-4o",
+        (
             "Eres un agente administrativo encargado de ejecutar tareas transaccionales de RRHH. "
             "Puedes generar certificados, revisar vacaciones, solicitar vacaciones, consultar nómina y beneficios. "
             "Si faltan datos para ejecutar un runbook, pide aclaraciones."
         )
     )
 
-    # Define tools for Admin Agent (these will be connected to MCP/Functions later)
-    # For now, we define them as definitions for the Orchestrator to know about
-    admin_tools_definitions = []
-    
-    # Note: In the user's example, they added ConnectedAgentTool for the admin agent itself
-    # But typically the Admin Agent *has* tools (functions).
-    # The Orchestrator uses the Admin Agent as a tool.
-    
     admin_tool_connected = ConnectedAgentTool(
         id=admin_agent.id,
-        name="AdministrativeAgent",
+        name=admin_agent.name,
         description="Ejecuta tareas administrativas de RRHH (certificados, vacaciones, nómina)."
     )
 
     # -------------------------
     # Policy Agent (RAG)
     # -------------------------
-    policy_agent = create_or_update_agent(
-        name="PolicyAgent",
-        model="gpt-4o",
-        instructions=(
+    policy_agent = get_or_create(
+        "policy_id",
+        "PolicyAgent",
+        "gpt-4o",
+        (
             "Eres experto en políticas de RRHH. "
             "Usa el sistema de RAG para responder preguntas usando documentos internos. "
             "Si no está en las políticas, indica que debe contactar RRHH."
         )
-        # Note: We would attach Azure AI Search tool here if we had the vector store ID ready
     )
 
     policy_tool = ConnectedAgentTool(
@@ -151,10 +168,11 @@ def main():
     # -------------------------
     # Proxy Agent (Human Escalation)
     # -------------------------
-    proxy_agent = create_or_update_agent(
-        name="ProxyAgent",
-        model="gpt-4o",
-        instructions=(
+    proxy_agent = get_or_create(
+        "proxy_id",
+        "ProxyAgent",
+        "gpt-4o",
+        (
             "Eres el agente de escalamiento. "
             "Recibes solicitudes que requieren intervención humana: conflictos laborales, quejas, temas sensibles. "
             "Tu trabajo es derivar el caso a un agente humano y registrar los detalles."
@@ -170,34 +188,13 @@ def main():
     # ================================================================
     # 3. Create Orchestrator Agent
     # ================================================================
-    # The Orchestrator uses the other agents as tools
     
-    orchestrator_tools = [
-        intent_tool,
-        admin_tool_connected,
-        policy_tool,
-        proxy_tool
-    ]
-    
-    # We need to extract definitions correctly. 
-    # In the user's code: tools=[*intent_tool.definitions, ...]
-    # But ConnectedAgentTool might not have .definitions property directly in all SDK versions.
-    # Let's check the SDK usage. The user code says: *intent_tool.definitions
-    # Assuming ConnectedAgentTool has a definitions property that returns a list of ToolDefinition
-    
-    # However, to be safe and simple, let's try to pass the tool objects if the SDK supports it,
-    # or inspect what definitions returns.
-    # For this script, I will assume the user's snippet is correct for their SDK version.
-    
-    # Wait, ConnectedAgentTool is a wrapper. 
-    # Let's try to construct the tools list for the orchestrator.
-    
+    # Prepare tools for Orchestrator
     final_tools = []
     try:
         if hasattr(intent_tool, 'definitions'):
             final_tools.extend(intent_tool.definitions)
         else:
-            # Fallback or different SDK version
             final_tools.append(intent_tool)
             
         if hasattr(admin_tool_connected, 'definitions'):
@@ -218,10 +215,11 @@ def main():
     except Exception as e:
         print(f"⚠️ Warning preparing tools: {e}")
 
-    orchestrator_agent = create_or_update_agent(
-        name="OrchestratorAgent",
-        model="gpt-4o",
-        instructions=(
+    orchestrator_agent = get_or_create(
+        "orchestrator_id",
+        "OrchestratorAgent",
+        "gpt-4o",
+        (
             "Eres el agente orquestador del Service Desk de RRHH. "
             "Tu responsabilidad es: "
             "1) Usar el IntentAgent para identificar la intención del usuario. "
@@ -233,23 +231,57 @@ def main():
         tools=final_tools
     )
 
-    if orchestrator_agent:
-        print(f"\n✅ Orchestrator Agent Successfully Created!")
-        print(f"   ID: {orchestrator_agent.id}")
-        print(f"   Name: {orchestrator_agent.name}")
+    # -------------------------
+    # Conversational Agent (Front Desk)
+    # -------------------------
+    conversational_agent = get_or_create(
+        "conversational_id",
+        "ConversationalAgent",
+        "gpt-4o",
+        (
+            "Eres 'Clara', la asistente virtual de Recursos Humanos de la empresa. "
+            "Tu personalidad es profesional, empática, paciente y eficiente. "
+            "Tu objetivo es ayudar a los empleados con sus consultas de RRHH de manera natural, como si fueras una persona real. "
+            "\n\n"
+            "REGLAS DE COMPORTAMIENTO:\n"
+            "1. Mantén siempre tu rol. Si te preguntan sobre temas ajenos a RRHH (deportes, cocina, código, etc.), responde amablemente que solo puedes asistir con temas laborales y de la empresa.\n"
+            "2. Sé conversacional. Saluda, despídete y usa un tono cercano pero respetuoso.\n"
+            "3. NO inventes información. Si no sabes algo, ofrece crear un caso para que un humano lo revise.\n"
+            "4. DETECCIÓN DE CASOS: Tu trabajo principal es identificar cuando un usuario necesita una gestión formal.\n"
+            "   - Si el usuario solo saluda o charla, responde normalmente.\n"
+            "   - Si el usuario pide algo que requiere acción (certificado, vacaciones, nómina, duda de política), DEBES incluir un bloque JSON oculto al final de tu respuesta.\n"
+            "\n"
+            "FORMATO DE RESPUESTA PARA CASOS:\n"
+            "Responde al usuario con texto normal, y AL FINAL, añade este bloque JSON (y nada más después del bloque):\n"
+            "```json\n"
+            "{\n"
+            "  \"requires_case\": true,\n"
+            "  \"case_type\": \"<tipo_de_caso>\",\n"
+            "  \"summary\": \"<resumen_breve>\"\n"
+            "}\n"
+            "```\n"
+            "Tipos de caso válidos: 'generate_certificate', 'check_vacation_balance', 'request_vacation', 'get_payroll_details', 'general_inquiry' (para dudas de políticas).\n"
+        )
+    )
+
+    # Save updated IDs
+    if orchestrator_agent and conversational_agent:
+        print(f"\n✅ Agents Status:")
+        print(f"   Orchestrator ID: {orchestrator_agent.id}")
+        print(f"   Conversational ID: {conversational_agent.id}")
         
-        # Save these IDs to a file or .env for the backend to use
+        new_ids = {
+            "orchestrator_id": orchestrator_agent.id,
+            "intent_id": intent_agent.id,
+            "admin_id": admin_agent.id,
+            "policy_id": policy_agent.id,
+            "proxy_id": proxy_agent.id,
+            "conversational_id": conversational_agent.id
+        }
+        
         with open("agent_ids.json", "w") as f:
-            import json
-            ids = {
-                "orchestrator_id": orchestrator_agent.id,
-                "intent_id": intent_agent.id,
-                "admin_id": admin_agent.id,
-                "policy_id": policy_agent.id,
-                "proxy_id": proxy_agent.id
-            }
-            json.dump(ids, f, indent=2)
-            print("   Saved agent IDs to agent_ids.json")
+            json.dump(new_ids, f, indent=2)
+            print("   Saved/Updated agent IDs to agent_ids.json")
 
 if __name__ == "__main__":
     main()

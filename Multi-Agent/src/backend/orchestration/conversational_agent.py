@@ -28,12 +28,14 @@ class ConversationalAgent:
             import json
             agent_ids_path = os.path.join(os.path.dirname(__file__), "..", "agent_ids.json")
             
+            print(f"DEBUG: Attempting to load agent IDs from {agent_ids_path}")
             if os.path.exists(agent_ids_path):
                 with open(agent_ids_path, "r") as f:
                     agent_ids = json.load(f)
-                    # Use the Orchestrator as the conversational agent for now
-                    # In production, you'd create a dedicated "Triage" or "Conversational" agent
-                    self.conversational_agent_id = agent_ids.get("orchestrator_id")
+                    self.conversational_agent_id = agent_ids.get("conversational_id")
+                    print(f"DEBUG: Loaded conversational_agent_id: {self.conversational_agent_id}")
+            else:
+                print("DEBUG: agent_ids.json not found!")
             
             endpoint = os.getenv("AZURE_AI_AGENT_ENDPOINT")
             subscription_id = os.getenv("AZURE_AI_SUBSCRIPTION_ID")
@@ -51,9 +53,11 @@ class ConversationalAgent:
                 logger.info(f"ConversationalAgent initialized with agent ID: {self.conversational_agent_id}")
             else:
                 logger.warning("Azure AI configuration incomplete. Running in mock mode.")
+                print("DEBUG: Missing Azure env vars")
                 
         except Exception as e:
             logger.error(f"Failed to initialize ConversationalAgent: {e}")
+            print(f"DEBUG: Init exception: {e}")
 
     async def chat(self, user_id: str, message: str) -> Dict[str, Any]:
         """
@@ -66,7 +70,11 @@ class ConversationalAgent:
         
         if not self.project_client or not self.conversational_agent_id:
             # Mock mode - simple heuristic
-            return self._mock_chat(message)
+            return {
+                "response": f"DEBUG MODE: Client or Agent ID missing. Client: {self.project_client}, ID: {self.conversational_agent_id}",
+                "requires_case": False,
+                "case_type": None
+            }
         
         try:
             # Get or create thread for this user
@@ -92,31 +100,50 @@ class ConversationalAgent:
                 # Get the last assistant message
                 for msg in messages:
                     if msg.role == "assistant":
-                        response_text = ""
+                        full_response = ""
                         for content_item in msg.content:
                             if hasattr(content_item, 'text'):
-                                response_text += content_item.text.value
+                                full_response += content_item.text.value
                         
-                        # Analyze if this requires case creation
-                        # The agent should indicate this in its response or we parse it
-                        requires_case = self._should_create_case(message, response_text)
+                        # Parse JSON block for case detection
+                        import re
+                        json_match = re.search(r"```json\s*({.*?})\s*```", full_response, re.DOTALL)
+                        
+                        requires_case = False
+                        case_type = None
+                        clean_response = full_response
+                        
+                        if json_match:
+                            try:
+                                json_str = json_match.group(1)
+                                case_data = json.loads(json_str)
+                                requires_case = case_data.get("requires_case", False)
+                                case_type = case_data.get("case_type")
+                                # Remove the JSON block from the response shown to user
+                                clean_response = full_response.replace(json_match.group(0), "").strip()
+                            except Exception as e:
+                                logger.error(f"Failed to parse JSON from agent response: {e}")
                         
                         return {
-                            "response": response_text,
+                            "response": clean_response,
                             "requires_case": requires_case,
-                            "case_type": self._determine_case_type(message) if requires_case else None
+                            "case_type": case_type
                         }
             
             return {
-                "response": f"Lo siento, hubo un problema al procesar tu mensaje. Estado: {run.status}",
+                "response": f"DEBUG ERROR: Run status is {run.status}. Details: {run.last_error if hasattr(run, 'last_error') else 'None'}",
                 "requires_case": False,
                 "case_type": None
             }
             
         except Exception as e:
             logger.error(f"Error in conversational agent (falling back to mock): {e}")
-            # Fall back to mock mode if Azure fails
-            return self._mock_chat(message)
+            # Return the actual error for debugging
+            return {
+                "response": f"DEBUG EXCEPTION: {str(e)}",
+                "requires_case": False,
+                "case_type": None
+            }
 
     async def _get_or_create_thread(self, user_id: str) -> str:
         """Get existing thread or create new one for user."""
@@ -147,12 +174,12 @@ class ConversationalAgent:
             return {
                 "response": "Entiendo que necesitas ayuda con esto. Voy a crear un caso para procesarlo correctamente.",
                 "requires_case": True,
-                "case_type": self._determine_case_type(message)
+                "case_type": "general_inquiry"
             }
         else:
             # Simple greeting or question
             if any(word in message_lower for word in ["hola", "buenos", "buenas", "hey"]):
-                response = "¡Hola! Soy tu asistente de Recursos Humanos. ¿En qué puedo ayudarte hoy?"
+                response = "¡Hola! Soy Clara, tu asistente de Recursos Humanos. ¿En qué puedo ayudarte hoy?"
             elif "?" in message:
                 response = "Esa es una buena pregunta. ¿Podrías darme más detalles para ayudarte mejor?"
             else:
@@ -163,24 +190,3 @@ class ConversationalAgent:
                 "requires_case": False,
                 "case_type": None
             }
-
-    def _should_create_case(self, user_message: str, agent_response: str) -> bool:
-        """Determine if a case should be created based on the conversation."""
-        # Keywords that indicate actionable requests
-        action_keywords = ["certificado", "constancia", "solicitud", "necesito", "quiero", "generar", "crear"]
-        message_lower = user_message.lower()
-        
-        return any(keyword in message_lower for keyword in action_keywords)
-
-    def _determine_case_type(self, message: str) -> str:
-        """Determine the type of case based on message content."""
-        message_lower = message.lower()
-        
-        if "certificado" in message_lower or "constancia" in message_lower:
-            return "generate_certificate"
-        elif "vacaciones" in message_lower or "saldo" in message_lower:
-            return "check_vacation_balance"
-        elif "nomina" in message_lower or "pago" in message_lower:
-            return "get_payroll_details"
-        else:
-            return "general_inquiry"
