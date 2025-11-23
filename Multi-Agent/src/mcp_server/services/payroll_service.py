@@ -3,7 +3,8 @@ Payroll MCP tools service.
 """
 
 from typing import Any, Dict
-
+from azure.cosmos import CosmosClient
+from config.settings import config
 from core.factory import Domain, MCPToolBase
 from utils.formatters import format_error_response, format_success_response
 
@@ -13,6 +14,14 @@ class PayrollService(MCPToolBase):
 
     def __init__(self):
         super().__init__(Domain.PAYROLL)
+        self.container = None
+        if config.cosmos_endpoint and config.cosmos_key:
+            try:
+                client = CosmosClient(config.cosmos_endpoint, credential=config.cosmos_key)
+                database = client.get_database_client(config.cosmos_database_name)
+                self.container = database.get_container_client("employees")
+            except Exception as e:
+                print(f"⚠️ Failed to initialize Cosmos DB Client: {e}")
 
     def register_tools(self, mcp) -> None:
         """Register Payroll tools with the MCP server."""
@@ -22,17 +31,37 @@ class PayrollService(MCPToolBase):
             employee_id: str, period: str = "Current"
         ) -> str:
             """Retrieve payroll summary for an employee securely."""
+            if not self.container:
+                return format_error_response("Database connection unavailable", "getting payroll details")
+
             try:
-                # Mock secure data retrieval
+                # Query Cosmos DB for employee
+                # Note: In a real app, we'd query by a secure user ID from the context, 
+                # but here we simulate looking up by the provided ID.
+                query = "SELECT * FROM c WHERE c.id = @id"
+                params = [{"name": "@id", "value": employee_id}]
+                
+                items = list(self.container.query_items(
+                    query=query,
+                    parameters=params,
+                    enable_cross_partition_query=True
+                ))
+                
+                if not items:
+                    return format_error_response(f"Employee {employee_id} not found", "getting payroll details")
+                
+                employee = items[0]
+                payroll_info = employee.get("payroll_info", {})
+                
                 details = {
                     "employee_id": employee_id,
+                    "name": employee.get("name"),
                     "period": period,
-                    "gross_pay": "$5,000.00",
-                    "net_pay": "$3,850.00",
-                    "payment_date": "2024-05-30",
+                    "salary": payroll_info.get("salary", "N/A"),
+                    "last_payment_date": payroll_info.get("last_payment_date", "N/A"),
                     "status": "Processed"
                 }
-                summary = f"Retrieved payroll details for {employee_id} for period {period}."
+                summary = f"Retrieved payroll details for {employee.get('name')} ({employee_id}). Salary: {details['salary']}."
 
                 return format_success_response(
                     action="Get Payroll Details", details=details, summary=summary

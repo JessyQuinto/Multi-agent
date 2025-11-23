@@ -1,0 +1,33 @@
+employeeId,fullName,department,position,email,startDate,endDate,status,salary
+E1000,Natalia Cruz,Producto,Desarrollador Senior,natalia.cruz@cotemporal.co,2023-12-09,,activo,8100000
+E1001,Ricardo Salazar,Seguridad,QA Analyst Junior,ricardo.salazar@cotemporal.co,2023-09-05,,activo,5300000
+E1002,Natalia Herrera,QA,Desarrollador Senior,natalia.herrera@cotemporal.co,2024-10-06,,activo,9000000
+E1003,Hector Ramirez,Seguridad,Desarrollador Senior,hector.ramirez@cotemporal.co,2021-04-04,,activo,8300000
+E1004,Camila Suarez,Infraestructura,SysAdmin,camila.suarez@cotemporal.co,2023-03-29,,activo,7100000
+E1005,Victor Herrera,Seguridad,Desarrollador Semi Senior,victor.herrera@cotemporal.co,2021-12-06,,activo,7300000
+E1006,Esteban Salazar,QA,DevOps Junior,esteban.salazar@cotemporal.co,2020-05-10,2023-10-29,retirado,4500000
+E1007,Lorena Salazar,Seguridad,DevOps Junior,lorena.salazar@cotemporal.co,2024-01-18,,activo,4600000
+E1008,Claudia Cortes,Infraestructura,DevOps Engineer,claudia.cortes@cotemporal.co,2022-11-09,,activo,6500000
+E1009,Juan Castro,Desarrollo,Desarrollador Senior,juan.castro@cotemporal.co,2023-03-02,,activo,8900000
+E1010,Diana Suarez,Desarrollo,DevOps Junior,diana.suarez@cotemporal.co,2021-03-19,,activo,5200000
+E1011,Andres Ramirez,Desarrollo,Desarrollador Semi Senior,andres.ramirez@cotemporal.co,2021-06-16,,activo,6400000
+E1012,Valeria Herrera,DevOps,Desarrollador Semi Senior,valeria.herrera@cotemporal.co,2021-11-05,,activo,7000000
+E1013,Lucas Castro,Seguridad,Desarrollador Senior,lucas.castro@cotemporal.co,2024-06-01,,activo,7800000
+E1014,Sergio Ortega,Desarrollo,Desarrollador Semi Senior,sergio.ortega@cotemporal.co,2021-05-15,,activo,6500000
+E1015,Ana Rios,Data & Analytics,Data Architect,ana.rios@cotemporal.co,2024-03-23,,activo,8500000
+E1016,Monica Ramirez,Recursos Humanos,Gerente de Tecnologia,monica.ramirez@cotemporal.co,2021-02-10,,activo,9600000
+E1017,Oscar Castro,QA,QA Analyst Junior,oscar.castro@cotemporal.co,2021-01-17,2023-12-12,retirado,4200000
+E1018,Laura Aguilar,DevOps,Senior DevOps Engineer,laura.aguilar@cotemporal.co,2023-09-07,,activo,9200000
+E1019,Patricia Guerrero,Data & Analytics,Data Engineer,patricia.guerrero@cotemporal.co,2024-05-01,,activo,6800000
+E1020,Elena Pineda,Infraestructura,SysAdmin,elena.pineda@cotemporal.co,2020-09-02,,activo,7400000
+E1021,Mateo Suarez,Seguridad,DevOps Engineer,mateo.suarez@cotemporal.co,2021-09-03,2025-05-13,retirado,6100000
+E1022,Carolina Herrera,Desarrollo,Desarrollador Semi Senior,carolina.herrera@cotemporal.co,2020-03-13,,activo,6200000
+E1023,Sofia Herrera,Data & Analytics,Data Analyst Junior,sofia.herrera@cotemporal.co,2020-05-27,,activo,4800000
+E1024,Julian Rios,Producto,Product Manager,julian.rios@cotemporal.co,2022-06-25,2024-08-14,retirado,9800000
+E1025,Ruben Herrera,Desarrollo,Desarrollador Senior,ruben.herrera@cotemporal.co,2023-08-13,,activo,8300000
+E1026,Isabel Morales,QA,QA Lead,isabel.morales@cotemporal.co,2024-01-20,,activo,9000000
+E1027,Daniel Ramirez,Infraestructura,SysAdmin,daniel.ramirez@cotemporal.co,2023-02-26,,activo,6900000
+E1028,Lucia Pineda,Soporte,Soporte Tecnico,lucia.pineda@cotemporal.co,2021-08-08,2024-03-19,retirado,4700000
+E1029,Miguel Aguilar,DevOps,DevOps Engineer,miguel.aguilar@cotemporal.co,2022-03-09,,activo,6300000
+E1030,Camila Ortega,Desarrollo,Desarrollador Junior,camila.ortega@cotemporal.co,2024-04-29,,activo,4400000
+E1031,Diego Acosta,Seguridad,Senior DevOps Engineer,diego.acosta@cotemporal.co,2022-09-11,,activo,9100000

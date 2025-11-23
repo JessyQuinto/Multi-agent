@@ -37,6 +37,15 @@ class MCPServerConfig(BaseSettings):
     # Dataset path - added to handle the environment variable
     dataset_path: str = Field(default="./datasets")
 
+    # Cosmos DB Configuration
+    cosmos_endpoint: Optional[str] = Field(default=None, alias="COSMOS_ENDPOINT")
+    cosmos_key: Optional[str] = Field(default=None, alias="COSMOS_KEY")
+    cosmos_database_name: str = Field(default="hr_service_desk", alias="COSMOS_DATABASE_NAME")
+    
+    # Azure AI Search Configuration
+    azure_search_endpoint: Optional[str] = Field(default=None, alias="AZURE_SEARCH_ENDPOINT")
+    azure_search_key: Optional[str] = Field(default=None, alias="AZURE_SEARCH_KEY")
+
 
 # Global configuration instance
 config = MCPServerConfig()

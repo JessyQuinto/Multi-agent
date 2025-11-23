@@ -3,7 +3,8 @@ Time Off MCP tools service.
 """
 
 from typing import Any, Dict
-
+from azure.cosmos import CosmosClient
+from config.settings import config
 from core.factory import Domain, MCPToolBase
 from utils.date_utils import format_date_for_user
 from utils.formatters import format_error_response, format_success_response
@@ -14,6 +15,14 @@ class TimeOffService(MCPToolBase):
 
     def __init__(self):
         super().__init__(Domain.TIME_OFF)
+        self.container = None
+        if config.cosmos_endpoint and config.cosmos_key:
+            try:
+                client = CosmosClient(config.cosmos_endpoint, credential=config.cosmos_key)
+                database = client.get_database_client(config.cosmos_database_name)
+                self.container = database.get_container_client("employees")
+            except Exception as e:
+                print(f"⚠️ Failed to initialize Cosmos DB Client: {e}")
 
     def register_tools(self, mcp) -> None:
         """Register Time Off tools with the MCP server."""
@@ -21,16 +30,33 @@ class TimeOffService(MCPToolBase):
         @mcp.tool(tags={self.domain.value})
         async def check_vacation_balance(employee_id: str) -> str:
             """Check available vacation days for an employee."""
+            if not self.container:
+                return format_error_response("Database connection unavailable", "checking vacation balance")
+
             try:
-                # Mock data
+                # Query Cosmos DB for employee
+                query = "SELECT * FROM c WHERE c.id = @id"
+                params = [{"name": "@id", "value": employee_id}]
+                
+                items = list(self.container.query_items(
+                    query=query,
+                    parameters=params,
+                    enable_cross_partition_query=True
+                ))
+                
+                if not items:
+                    return format_error_response(f"Employee {employee_id} not found", "checking vacation balance")
+                
+                employee = items[0]
+                vacation_balance = employee.get("vacation_balance", 15)
+                
                 details = {
                     "employee_id": employee_id,
-                    "total_days": 15,
-                    "used_days": 5,
-                    "available_days": 10,
+                    "name": employee.get("name"),
+                    "available_days": vacation_balance,
                     "accrual_rate": "1.25 days/month"
                 }
-                summary = f"Employee {employee_id} has {details['available_days']} vacation days available."
+                summary = f"{employee.get('name')} has {vacation_balance} vacation days available."
 
                 return format_success_response(
                     action="Check Vacation Balance", details=details, summary=summary
