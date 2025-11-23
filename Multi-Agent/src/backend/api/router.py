@@ -53,7 +53,7 @@ async def hr_chat(
 ):
     """
     HR Service Desk Chat Endpoint.
-    Routes user input to the Dispatcher for multi-intent analysis and case creation.
+    Uses ConversationalAgent to interact with user and determine if case creation is needed.
     """
     authenticated_user = get_authenticated_user_details(request_headers=request.headers)
     user_id = authenticated_user["user_principal_id"]
@@ -62,27 +62,40 @@ async def hr_chat(
         raise HTTPException(status_code=401, detail="Missing or invalid user information")
 
     try:
-        # 1. Initialize Services
-        memory_store = await DatabaseFactory.get_database(user_id=user_id)
-        case_service = CaseService(memory_store)
-        dispatcher = DispatcherService(case_service)
-
-        # 2. Process Input
         user_message = input_data.get("message", "")
         if not user_message:
              raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-        # 3. Dispatch
-        # This returns a list of created cases/responses
-        # For now, we just return the result of the dispatch
-        # In the future, this might trigger background tasks
+        # 1. Initialize ConversationalAgent (user-facing AI)
+        from orchestration.conversational_agent import ConversationalAgent
+        conversational_agent = ConversationalAgent()
+
+        # 2. Chat with user - agent decides if case is needed
+        chat_result = await conversational_agent.chat(user_id, user_message)
         
-        result = await dispatcher.process_user_input(user_id, user_message)
-        
-        return {
-            "status": "success",
-            "data": result
-        }
+        # 3. If agent determines a case is needed, route to DispatcherService
+        if chat_result.get("requires_case", False):
+            memory_store = await DatabaseFactory.get_database(user_id=user_id)
+            case_service = CaseService(memory_store)
+            dispatcher = DispatcherService(case_service)
+            
+            # Process through dispatcher
+            cases = await dispatcher.process_user_input(user_id, user_message)
+            
+            # Return conversational response + case info
+            return {
+                "status": "success",
+                "response": chat_result["response"],
+                "cases_created": cases,
+                "requires_case": True
+            }
+        else:
+            # Simple question - agent already answered it
+            return {
+                "status": "success",
+                "response": chat_result["response"],
+                "requires_case": False
+            }
 
     except Exception as e:
         logger.error(f"Error in HR Chat: {e}")

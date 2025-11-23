@@ -21,19 +21,16 @@ class DispatcherService:
 
     async def process_user_input(self, user_id: str, user_input: str) -> List[Dict[str, Any]]:
         """
-        Process raw user input, split into cases, and return the created cases.
+        Process raw user input, split into cases, and return the created cases with agent responses.
         """
         logger.info(f"Dispatcher received input from {user_id}: {user_input}")
 
         # 1. Analyze Intents (Mocked for now, will use IntentAgent later)
-        # In a real scenario, we would call the IntentAgent here to get a structured JSON back.
-        # For now, we'll do a simple heuristic or just assume 1 case if simple.
-        
         intents = self._mock_intent_analysis(user_input)
         
         created_cases = []
         
-        # 2. Create a Case for each intent
+        # 2. Create a Case for each intent and process with agents
         for intent in intents:
             case_id = str(uuid.uuid4())
             case_data = {
@@ -42,13 +39,38 @@ class DispatcherService:
                 "intent": intent["intent_type"],
                 "description": intent["description"],
                 "status": "open",
-                "thread_id": None # Will be set when connected to Azure AI Foundry
+                "thread_id": None,
+                "agent_response": None  # Will be filled by orchestrator
             }
             
             # Persist case
             await self.case_service.create_case(case_data)
-            created_cases.append(case_data)
             logger.info(f"Created Case {case_id} for intent: {intent['intent_type']}")
+            
+            # 3. Route to Orchestrator for agent processing
+            try:
+                from orchestration.azure_ai_orchestrator import AzureAIOrchestrator
+                orchestrator = AzureAIOrchestrator()
+                
+                # Process the case with the appropriate agent
+                agent_response = await orchestrator.process_case(case_data)
+                case_data["agent_response"] = agent_response
+                case_data["status"] = "completed"
+                
+                # Update case with response
+                await self.case_service.update_case(case_id, {
+                    "agent_response": agent_response,
+                    "status": "completed"
+                })
+                
+                logger.info(f"Case {case_id} processed by agent. Response: {agent_response[:100]}...")
+                
+            except Exception as e:
+                logger.error(f"Error processing case {case_id} with agent: {e}")
+                case_data["agent_response"] = f"Error al procesar: {str(e)}"
+                case_data["status"] = "error"
+            
+            created_cases.append(case_data)
 
         return created_cases
 

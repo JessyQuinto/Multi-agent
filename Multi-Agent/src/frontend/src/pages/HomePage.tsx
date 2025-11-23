@@ -23,6 +23,7 @@ import {
 import { ServiceCard } from '../components/content/ServiceCard';
 import { TicketList } from '../components/content/TicketList';
 import InlineToaster, { useInlineToaster } from '../components/toast/InlineToaster';
+import { ThinkingIndicator } from '../components/chat/ThinkingIndicator';
 
 const useStyles = makeStyles({
     container: {
@@ -151,13 +152,24 @@ const HomePage: React.FC = () => {
                 throw new Error('Network response was not ok');
             }
 
-            const data = await response.json();
-            // Assuming data.data is the response string or object
-            // The backend returns { status: "success", data: result }
-            // result from dispatcher is currently just the string response or a list of events
-            // Let's assume it returns a string for now, or we adjust based on DispatcherService
 
-            const assistantMessage = typeof data.data === 'string' ? data.data : JSON.stringify(data.data);
+            const data = await response.json();
+
+            // The new response structure from ConversationalAgent
+            let assistantMessage = "";
+
+            if (data.status === "success") {
+                // Always use the agent's conversational response
+                assistantMessage = data.response || "";
+
+                // If cases were created, add that info
+                if (data.requires_case && data.cases_created && Array.isArray(data.cases_created)) {
+                    const cases = data.cases_created;
+                    assistantMessage += `\n\n📋 Casos creados: ${cases.length}`;
+                }
+            } else {
+                assistantMessage = "He procesado tu solicitud. ¿Hay algo más en lo que pueda ayudarte?";
+            }
 
             setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
 
@@ -196,10 +208,10 @@ const HomePage: React.FC = () => {
     };
 
     const suggestions = [
-        "Explícame la política de vacaciones",
         "¿Cómo solicito un certificado laboral?",
-        "¿Cuándo es el próximo pago de nómina?",
         "Consultar mi saldo de vacaciones",
+        "¿Cuándo es el próximo pago de nómina?",
+        "Información sobre beneficios y prestaciones",
     ];
 
     // Full-screen chat mode
@@ -215,19 +227,51 @@ const HomePage: React.FC = () => {
                 }}>
                     {/* Chat Header */}
                     <div style={{
-                        padding: '16px 24px',
+                        padding: '20px 24px',
                         borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
                         display: 'flex',
                         alignItems: 'center',
                         gap: '16px',
+                        backgroundColor: tokens.colorNeutralBackground1,
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                     }}>
                         <Button
                             appearance="subtle"
                             onClick={handleBackToHome}
+                            style={{
+                                minWidth: 'auto',
+                                padding: '8px 12px',
+                            }}
                         >
                             ← Volver
                         </Button>
-                        <Title2>Copilot Assistant</Title2>
+                        <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            backgroundColor: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 2px 8px rgba(0, 120, 212, 0.3)',
+                            overflow: 'hidden',
+                        }}>
+                            <img
+                                src="/agent-avatar.png"
+                                alt="Asistente"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                        </div>
+                        <div>
+                            <Title2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Asistente de RRHH</Title2>
+                            <div style={{
+                                fontSize: '13px',
+                                color: tokens.colorNeutralForeground3,
+                                marginTop: '2px'
+                            }}>
+                                Siempre disponible para ayudarte
+                            </div>
+                        </div>
                     </div>
 
                     {/* Messages Area */}
@@ -235,41 +279,125 @@ const HomePage: React.FC = () => {
                         flex: 1,
                         overflowY: 'auto',
                         padding: '40px 20px',
-                        maxWidth: '800px',
+                        maxWidth: '900px',
                         width: '100%',
                         margin: '0 auto',
                     }}>
                         {messages.map((msg, index) => (
                             <div key={index} style={{
-                                marginBottom: '24px',
+                                marginBottom: '32px',
                                 display: 'flex',
-                                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                gap: '12px',
+                                alignItems: 'flex-start',
+                                flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
                             }}>
+                                {/* Avatar */}
+                                {msg.role === 'assistant' && (
+                                    <div style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#fff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                        boxShadow: '0 2px 8px rgba(0, 120, 212, 0.3)',
+                                        overflow: 'hidden',
+                                    }}>
+                                        <img
+                                            src="/agent-avatar.png"
+                                            alt="Asistente"
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Message Bubble */}
                                 <div style={{
                                     maxWidth: '70%',
-                                    padding: '12px 16px',
-                                    borderRadius: '12px',
+                                    padding: '14px 18px',
+                                    borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                                     backgroundColor: msg.role === 'user'
                                         ? tokens.colorBrandBackground
-                                        : tokens.colorNeutralBackground2,
+                                        : tokens.colorNeutralBackground1,
                                     color: msg.role === 'user'
                                         ? tokens.colorNeutralForegroundOnBrand
                                         : tokens.colorNeutralForeground1,
+                                    boxShadow: msg.role === 'user'
+                                        ? '0 2px 8px rgba(0, 120, 212, 0.2)'
+                                        : '0 1px 3px rgba(0, 0, 0, 0.1)',
+                                    border: msg.role === 'assistant' ? `1px solid ${tokens.colorNeutralStroke2}` : 'none',
+                                    fontSize: '15px',
+                                    lineHeight: '1.5',
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word',
                                 }}>
                                     {msg.content}
                                 </div>
+
+                                {/* User Avatar (just initials) */}
+                                {msg.role === 'user' && (
+                                    <div style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '50%',
+                                        backgroundColor: tokens.colorBrandBackground,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        color: tokens.colorNeutralForegroundOnBrand,
+                                    }}>
+                                        U
+                                    </div>
+                                )}
                             </div>
                         ))}
+
+                        {/* Show thinking indicator while loading */}
+                        {isLoading && (
+                            <div style={{
+                                marginBottom: '32px',
+                                display: 'flex',
+                                gap: '12px',
+                                alignItems: 'flex-start',
+                            }}>
+                                {/* Agent Avatar */}
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    boxShadow: '0 2px 8px rgba(0, 120, 212, 0.3)',
+                                    overflow: 'hidden',
+                                }}>
+                                    <img
+                                        src="/agent-avatar.png"
+                                        alt="Asistente"
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                </div>
+                                <ThinkingIndicator text="Pensando..." />
+                            </div>
+                        )}
                     </div>
 
                     {/* Chat Input at Bottom */}
                     <div style={{
-                        padding: '24px',
+                        padding: '20px 24px',
                         borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
                         backgroundColor: tokens.colorNeutralBackground1,
+                        boxShadow: '0 -1px 3px rgba(0, 0, 0, 0.05)',
                     }}>
                         <div style={{
-                            maxWidth: '800px',
+                            maxWidth: '900px',
                             margin: '0 auto',
                         }}>
                             <div className={styles.chatInputContainer}>
@@ -277,29 +405,32 @@ const HomePage: React.FC = () => {
                                     appearance="subtle"
                                     icon={<AddRegular />}
                                     size="medium"
+                                    disabled={isLoading}
                                 />
                                 <Input
                                     className={styles.chatInput}
                                     value={chatInput}
                                     onChange={(e) => setChatInput(e.target.value)}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
+                                        if (e.key === 'Enter' && !isLoading) {
                                             handleChatSubmit();
                                         }
                                     }}
-                                    placeholder="Pregunta cualquier cosa"
+                                    placeholder="Escribe tu mensaje aquí..."
                                     appearance="outline"
+                                    disabled={isLoading}
                                 />
                                 <Button
                                     appearance="subtle"
                                     icon={<MicRegular />}
                                     size="medium"
+                                    disabled={isLoading}
                                 />
                                 <Button
                                     appearance="primary"
                                     icon={<SendRegular />}
                                     onClick={handleChatSubmit}
-                                    disabled={!chatInput.trim()}
+                                    disabled={!chatInput.trim() || isLoading}
                                 />
                             </div>
                         </div>
@@ -315,10 +446,37 @@ const HomePage: React.FC = () => {
             <InlineToaster />
             <div className={styles.container}>
                 <div className={styles.content}>
+                    {/* Subtle Header with Small Logo */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '12px',
+                        marginBottom: '16px',
+                        opacity: 0.8,
+                    }}>
+                        <img
+                            src="/agent-avatar.png"
+                            alt="Logo"
+                            style={{
+                                width: '32px',
+                                height: '32px',
+                                objectFit: 'contain'
+                            }}
+                        />
+                        <div style={{
+                            fontSize: '16px',
+                            fontWeight: 600,
+                            color: tokens.colorNeutralForeground2,
+                        }}>
+                            Asistente Virtual de RRHH
+                        </div>
+                    </div>
+
                     {/* Greeting Section */}
                     <div className={styles.greetingSection}>
                         <div className={styles.greeting}>
-                            Buenas tardes, JESSY
+                            ¡Hola! 👋
                         </div>
                         <div className={styles.subGreeting}>
                             ¿En qué puedo ayudarte hoy?
@@ -377,26 +535,26 @@ const HomePage: React.FC = () => {
                         <Title2>Servicios Frecuentes</Title2>
                         <div className={styles.grid}>
                             <ServiceCard
-                                title="Certificados"
-                                description="Genera certificados laborales y de ingresos."
+                                title="Certificados Laborales"
+                                description="Solicita certificados de trabajo, ingresos y retenciones."
                                 icon={<DocumentPdfRegular fontSize={32} />}
-                                onClick={() => handleServiceClick('Certificados')}
+                                onClick={() => handleServiceClick('Certificados Laborales')}
                             />
                             <ServiceCard
                                 title="Vacaciones"
-                                description="Consulta saldo y solicita días de descanso."
+                                description="Consulta tu saldo y solicita días de vacaciones."
                                 icon={<CalendarClockRegular fontSize={32} />}
                                 onClick={() => handleServiceClick('Vacaciones')}
                             />
                             <ServiceCard
-                                title="Nómina"
-                                description="Consulta tus desprendibles de pago."
+                                title="Nómina y Pagos"
+                                description="Revisa tus desprendibles de pago y prestaciones."
                                 icon={<MoneyHandRegular fontSize={32} />}
                                 onClick={() => handleServiceClick('Nómina')}
                             />
                             <ServiceCard
                                 title="Beneficios"
-                                description="Revisa tus beneficios activos."
+                                description="Conoce tus beneficios y programas de bienestar."
                                 icon={<PersonSupportRegular fontSize={32} />}
                                 onClick={() => handleServiceClick('Beneficios')}
                             />
